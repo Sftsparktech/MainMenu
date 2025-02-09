@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hotel Menu - Pending Orders</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+
+  <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Admin Dashboard</h1>
+
+  <div class="flex justify-between items-center mb-4">
+    <div>
+      <a href="home.html" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded" id="home-button">Home</a>
+      <a href="history.html" class="bg-gray-300 hover:bg-gray-400 text-black px-5 py-2 rounded">History</a>
+    </div>
+  </div>
+
+  <div class="p-6 border rounded bg-white shadow-lg">
+    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Pending Orders</h2>
+    <p id="order-message" class="text-sm text-gray-500"></p>
+    <table class="w-full text-left border-collapse">
+      <thead>
+        <tr class="bg-gray-200 border-b">
+          <th class="py-3 px-6">S.No</th>
+          <th class="py-3 px-6">Time</th>
+          <th class="py-3 px-6">Room</th>
+          <th class="py-3 px-6">Phone</th>
+          <th class="py-3 px-6">Total Quantity</th>
+          <th class="py-3 px-6">Items</th>
+          <th class="py-3 px-6">Total</th>
+          <th class="py-3 px-6">Optional Message</th>
+          <th class="py-3 px-6">Action</th>
+        </tr>
+      </thead>
+      <tbody id="order-table-body" class="text-gray-700"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const pendingOrdersDB = "https://hotelmanagement-7af33-default-rtdb.firebaseio.com/orders";
+    const historyDB = "https://adminhistory-fe93c-default-rtdb.firebaseio.com/history";
+    let orders = [];
+
+    // Fetch orders when page loads
+    fetchOrders();
+
+    function fetchOrders() {
+      axios.get(`${pendingOrdersDB}.json`)
+        .then(response => {
+          orders = response.data ? Object.entries(response.data).map(([id, order]) => ({ id, ...order })) : [];
+          renderOrders(); // Render orders immediately after fetching
+        })
+        .catch(error => console.error("🔥 Error fetching orders:", error));
+    }
+
+    function renderOrders() {
+      const tableBody = document.getElementById("order-table-body");
+      tableBody.innerHTML = "";
+
+      if (orders.length === 0) {
+        document.getElementById("order-message").textContent = "No pending orders available.";
+      } else {
+        document.getElementById("order-message").textContent = "";
+        orders.forEach((order, index) => {
+          const row = document.createElement("tr");
+          row.className = "border-b hover:bg-gray-100";
+          row.dataset.orderId = order.id;
+          row.innerHTML = `
+            <td class="py-4 px-6 font-bold serial-number">${index + 1}</td>
+            <td class="py-4 px-6">${order.time}</td>
+            <td class="py-4 px-6">${order.roomNumber}</td>
+            <td class="py-4 px-6">${order.phoneNumber}</td>
+            <td class="py-4 px-6">${order.totalQuantity}</td>
+            <td class="py-4 px-6">${order.items.map(item => `<span class="block">${item.name} (x${item.quantity})</span>`).join("")}</td>
+            <td class="py-4 px-6 font-bold text-green-600">₹${order.totalPrice}</td>
+            <td class="py-4 px-6">${order.optionalMessage || "No message"}</td>
+            <td class="py-4 px-6">
+              <button class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded" onclick="deliverOrder('${order.id}')">Deliver</button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+      }
+    }
+
+    function deliverOrder(orderId) {
+      if (!orderId) return;
+
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+
+      if (!confirm("Mark this order as delivered?")) return;
+
+      // Step 1: Delete the order from pending orders database
+      axios.delete(`${pendingOrdersDB}/${orderId}.json`)
+        .then(() => {
+          console.log("✅ Order deleted from pending:", orderId);
+
+          // Step 2: Add the order to history database (without waiting for response)
+          axios.post(`${historyDB}.json`, order)
+            .then(() => {
+              console.log("✅ Order added to history:", orderId);
+            })
+            .catch(error => {
+              console.error("❌ Error moving order to history:", error);
+            });
+
+          // Step 3: Update frontend state by removing the order from the list
+          orders = orders.filter(o => o.id !== orderId);
+          renderOrders(); // Re-render the updated orders list
+        })
+        .catch(error => {
+          console.error("❌ Error deleting order:", error);
+          alert("Failed to update the order. Please try again.");
+        });
+    }
+
+    // Highlight Home button when the page loads
+    document.addEventListener("DOMContentLoaded", function () {
+      const homeButton = document.getElementById("home-button");
+      if (homeButton) {
+        homeButton.classList.remove("bg-gray-300", "hover:bg-gray-400", "text-black");
+        homeButton.classList.add("bg-blue-600", "hover:bg-blue-700", "text-white");
+      }
+    });
+  </script>
+
+</body>
+</html>

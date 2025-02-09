@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hotel Menu - Order History</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+
+  <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Admin Dashboard</h1>
+
+  <div class="flex justify-between items-center mb-4">
+    <div>
+      <a href="home.html" class="bg-gray-300 hover:bg-gray-400 text-black px-5 py-2 rounded">Home</a>
+      <a href="history.html" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded" id="history-button">History</a>
+    </div>
+  </div>
+
+  <div class="p-6 border rounded bg-white shadow-lg">
+    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Order History</h2>
+    <p id="order-message" class="text-sm text-gray-500"></p>
+    <table class="w-full text-left border-collapse">
+      <thead>
+        <tr class="bg-gray-200 border-b">
+          <th class="py-3 px-6">S.No</th>
+          <th class="py-3 px-6">Time</th>
+          <th class="py-3 px-6">Room</th>
+          <th class="py-3 px-6">Phone</th>
+          <th class="py-3 px-6">Total Quantity</th>
+          <th class="py-3 px-6">Items</th>
+          <th class="py-3 px-6">Total</th>
+          <th class="py-3 px-6">Optional Message</th>
+        </tr>
+      </thead>
+      <tbody id="order-table-body" class="text-gray-700"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const historyDB = "https://adminhistory-fe93c-default-rtdb.firebaseio.com/history";
+    let history = [];
+
+    // Fetch order history when the page loads
+    fetchHistory();
+
+    function fetchHistory() {
+      axios.get(`${historyDB}.json`)
+        .then(response => {
+          history = response.data ? Object.entries(response.data).map(([id, order]) => ({ id, ...order })) : [];
+          renderOrders();
+        })
+        .catch(error => console.error("🔥 Error fetching history:", error));
+    }
+
+    function renderOrders() {
+      const tableBody = document.getElementById("order-table-body");
+      tableBody.innerHTML = "";
+
+      if (history.length === 0) {
+        document.getElementById("order-message").textContent = "No past orders available.";
+      } else {
+        document.getElementById("order-message").textContent = "";
+        history.forEach((order, index) => {
+          const row = document.createElement("tr");
+          row.className = "border-b";
+          row.dataset.orderId = order.id;
+          row.innerHTML = `
+            <td class="py-4 px-6 font-bold serial-number">${index + 1}</td>
+            <td class="py-4 px-6">${order.time}</td>
+            <td class="py-4 px-6">${order.roomNumber}</td>
+            <td class="py-4 px-6">${order.phoneNumber}</td>
+            <td class="py-4 px-6">${order.totalQuantity}</td>
+            <td class="py-4 px-6">${order.items.map(item => `<span class="block">${item.name} (x${item.quantity})</span>`).join("")}</td>
+            <td class="py-4 px-6 font-bold text-green-600">₹${order.totalPrice}</td>
+            <td class="py-4 px-6">${order.optionalMessage || "No message"}</td>
+          `;
+          tableBody.appendChild(row);
+        });
+      }
+    }
+  </script>
+
+</body>
+</html>
